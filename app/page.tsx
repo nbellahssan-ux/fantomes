@@ -33,7 +33,7 @@ export default function Home() {
         300&nbsp;€ : un ordre de grandeur, pas une statistique officielle.
       </p>
 
-      <a href="#" className={`${BOUTON} mt-8`}>
+      <a href="https://buy.stripe.com/test_8x23cv5us5tngYhgxq3VC00" className={`${BOUTON} mt-8`}>
         Débusquer mes abonnements : 19&nbsp;€
       </a>
       <p className="mt-3 text-center text-sm opacity-70">
@@ -50,7 +50,7 @@ export default function Home() {
       </ul>
 
       <div className="fixed inset-x-0 bottom-0 bg-[#1b1a17] p-4">
-        <a href="#" className={`${BOUTON} mx-auto max-w-xl`}>
+        <a href="https://buy.stripe.com/test_8x23cv5us5tngYhgxq3VC00" className={`${BOUTON} mx-auto max-w-xl`}>
           Payer 19&nbsp;€
         </a>
       </div>
