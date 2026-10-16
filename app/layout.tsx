@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Fraunces, DM_Sans } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 
 const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces" });
 const dm = DM_Sans({ subsets: ["latin"], variable: "--font-dm" });
@@ -28,6 +29,7 @@ export default function RootLayout({
     <html lang="fr" className={`${fraunces.variable} ${dm.variable}`}>
       <body>
         {children}
+	<Analytics />
         <footer className="mx-auto max-w-xl px-5 pb-28 text-center text-sm opacity-70">
           <Link href="/legal#mentions" className="underline">Mentions légales</Link>
           {" · "}
