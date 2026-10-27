@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { detect, letter, parseStatement, readText, type Sub } from "./lib";
+import { detect, letter, parseStatement, readText, type Sub, type Tx } from "./lib";
+import { readPdf } from "./pdf";
 
 const eur = (n: number) =>
   new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n);
@@ -17,29 +18,45 @@ export default function Audit() {
   const [who, setWho] = useState("");
   const [address, setAddress] = useState("");
   const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
     setError("");
     setSubs(null);
     setChecked({});
     setOpen(null);
-    if (f.size > 5_000_000) {
-      setError("Ce fichier est trop gros. Exporte seulement les 3 derniers mois.");
-      return;
-    }
+    setLoading(true);
     try {
-      const tx = parseStatement(await readText(f));
-      if (tx.length === 0) {
+      let all: Tx[] = [];
+      for (const f of files) {
+        if (f.size > 15_000_000) throw new Error("TROP_GROS");
+        const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+        all = all.concat(isPdf ? await readPdf(f) : parseStatement(await readText(f)));
+      }
+      const vus = new Set<string>();
+      all = all.filter((t) => {
+        const k = `${t.date.getTime()}|${t.label}|${t.amount}`;
+        if (vus.has(k)) return false;
+        vus.add(k);
+        return true;
+      });
+      if (all.length === 0) {
         setError(
-          "Je n'ai pas réussi à lire ce fichier. Vérifie que c'est bien un export CSV avec une date, un libellé et un montant."
+          "Je n'ai pas réussi à lire ce relevé. Vérifie que c'est bien le relevé téléchargé depuis ta banque (PDF ou CSV), pas une photo."
         );
         return;
       }
-      setSubs(detect(tx));
-    } catch {
-      setError("Impossible d'ouvrir ce fichier. Essaie un autre export CSV.");
+      setSubs(detect(all));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg === "PDF_IMAGE")
+        setError("Ce PDF ressemble à une image. Télécharge le relevé depuis ta banque en ligne, pas une photo ou un scan.");
+      else if (msg === "TROP_GROS") setError("Un fichier est trop gros. Prends seulement les 3 derniers mois.");
+      else setError("Impossible d'ouvrir ce fichier. Il est peut-être protégé par un mot de passe : essaie un autre relevé.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -67,13 +84,19 @@ export default function Audit() {
       {subs === null && (
         <section className="mt-6">
           <p className="text-lg leading-relaxed">
-            Dépose ton relevé bancaire (CSV). Il est analysé sur ton appareil :{" "}
-            <strong>il n&apos;est jamais envoyé ni enregistré.</strong>
+            Dépose tes relevés bancaires (PDF ou CSV). Ils sont analysés sur ton appareil :{" "}
+            <strong>ils ne sont jamais envoyés ni enregistrés.</strong>
           </p>
 
           <label className={`${BOUTON} mt-6 block cursor-pointer text-lg`}>
-            Choisir mon fichier CSV
-            <input type="file" accept=".csv,.txt,text/csv" onChange={onFile} className="sr-only" />
+            {loading ? "Lecture en cours..." : "Choisir mes relevés"}
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.csv,.txt,application/pdf,text/csv"
+              onChange={onFile}
+              className="sr-only"
+            />
           </label>
 
           {error && (
@@ -83,17 +106,18 @@ export default function Audit() {
           )}
 
           <details className="mt-8">
-            <summary className="cursor-pointer font-bold">Où trouver mon fichier ?</summary>
+            <summary className="cursor-pointer font-bold">Où trouver mes relevés ?</summary>
             <ol className="mt-3 list-decimal space-y-2 pl-5 leading-relaxed">
-              <li>Connecte-toi à ta banque en ligne, sur ordinateur (c&apos;est plus simple).</li>
-              <li>Ouvre ton compte courant, rubrique « Opérations » ou « Relevés ».</li>
-              <li>Cherche « Exporter » ou « Télécharger », puis choisis le format CSV.</li>
-              <li>Prends au moins 2 à 3 mois : un abonnement se repère quand il revient.</li>
+              <li>Connecte-toi à ta banque (appli ou site) et ouvre ton compte courant.</li>
+              <li>Cherche la rubrique « Relevés », « Documents » ou « Mes relevés ».</li>
+              <li>Télécharge les relevés PDF des 2 à 3 derniers mois : un abonnement se repère quand il revient.</li>
+              <li>Ici, sélectionne-les tous en même temps (ou un par un).</li>
             </ol>
+            <p className="mt-3 text-sm opacity-70">Tu as plutôt un export CSV ? Il fonctionne aussi.</p>
           </details>
 
           <p className="mt-6 text-sm opacity-70">
-            Pour essayer sans ton vrai relevé :{" "}
+            Pour essayer avec un CSV d&apos;exemple :{" "}
             <a href="/exemple.csv" download className="underline">
               télécharger un fichier d&apos;exemple
             </a>
@@ -105,7 +129,7 @@ export default function Audit() {
       {subs !== null && subs.length === 0 && (
         <section className="mt-6">
           <p className="text-lg leading-relaxed">
-            Aucun prélèvement régulier repéré. Essaie avec 2 à 3 mois de relevé : un abonnement ne se voit
+            Aucun prélèvement régulier repéré. Essaie avec 2 à 3 mois de relevés : un abonnement ne se voit
             que lorsqu&apos;il revient.
           </p>
           <button onClick={() => setSubs(null)} className={`${BOUTON} mt-6`}>
