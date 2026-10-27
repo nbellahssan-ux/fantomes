@@ -19,36 +19,39 @@ export default function Audit() {
   const [address, setAddress] = useState("");
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [all, setAll] = useState<Tx[]>([]);
+  const [names, setNames] = useState<string[]>([]);
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
+    const input = e.target;
+    const files = Array.from(input.files ?? []);
     if (files.length === 0) return;
     setError("");
-    setSubs(null);
-    setChecked({});
-    setOpen(null);
     setLoading(true);
     try {
-      let all: Tx[] = [];
+      let added: Tx[] = [];
       for (const f of files) {
         if (f.size > 15_000_000) throw new Error("TROP_GROS");
         const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
-        all = all.concat(isPdf ? await readPdf(f) : parseStatement(await readText(f)));
+        added = added.concat(isPdf ? await readPdf(f) : parseStatement(await readText(f)));
       }
-      const vus = new Set<string>();
-      all = all.filter((t) => {
-        const k = `${t.date.getTime()}|${t.label}|${t.amount}`;
-        if (vus.has(k)) return false;
-        vus.add(k);
-        return true;
-      });
-      if (all.length === 0) {
+      if (added.length === 0) {
         setError(
           "Je n'ai pas réussi à lire ce relevé. Vérifie que c'est bien le relevé téléchargé depuis ta banque (PDF ou CSV), pas une photo."
         );
         return;
       }
-      setSubs(detect(all));
+      const vus = new Set<string>();
+      const merged = all.concat(added).filter((t) => {
+        const k = `${t.date.getTime()}|${t.label}|${t.amount}`;
+        if (vus.has(k)) return false;
+        vus.add(k);
+        return true;
+      });
+      setAll(merged);
+      setNames((n) => [...n, ...files.map((f) => f.name)]);
+      setSubs(detect(merged));
+      setOpen(null);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
       if (msg === "PDF_IMAGE")
@@ -57,8 +60,43 @@ export default function Audit() {
       else setError("Impossible d'ouvrir ce fichier. Il est peut-être protégé par un mot de passe : essaie un autre relevé.");
     } finally {
       setLoading(false);
+      input.value = "";
     }
   }
+
+  function reset() {
+    setSubs(null);
+    setAll([]);
+    setNames([]);
+    setChecked({});
+    setOpen(null);
+    setError("");
+  }
+
+  const picker = (texte: string) => (
+    <label className={`${BOUTON} mt-6 block cursor-pointer text-lg`}>
+      {loading ? "Lecture en cours..." : texte}
+      <input
+        type="file"
+        multiple
+        accept=".pdf,.csv,.txt,application/pdf,text/csv"
+        onChange={onFile}
+        className="sr-only"
+      />
+    </label>
+  );
+
+  const errorBox = error && (
+    <p role="alert" className="mt-4 rounded-lg border-l-4 border-[#1b1a17] bg-[#f2d43d]/30 p-3">
+      {error}
+    </p>
+  );
+
+  const fichiers = names.length > 0 && (
+    <p className="mt-4 text-sm opacity-70">
+      {names.length} relevé{names.length > 1 ? "s" : ""} analysé{names.length > 1 ? "s" : ""} : {names.join(", ")}
+    </p>
+  );
 
   const total = useMemo(() => (subs ?? []).reduce((n, s) => n + s.annual, 0), [subs]);
   const saved = useMemo(
@@ -88,22 +126,8 @@ export default function Audit() {
             <strong>ils ne sont jamais envoyés ni enregistrés.</strong>
           </p>
 
-          <label className={`${BOUTON} mt-6 block cursor-pointer text-lg`}>
-            {loading ? "Lecture en cours..." : "Choisir mes relevés"}
-            <input
-              type="file"
-              multiple
-              accept=".pdf,.csv,.txt,application/pdf,text/csv"
-              onChange={onFile}
-              className="sr-only"
-            />
-          </label>
-
-          {error && (
-            <p role="alert" className="mt-4 rounded-lg border-l-4 border-[#1b1a17] bg-[#f2d43d]/30 p-3">
-              {error}
-            </p>
-          )}
+          {picker("Choisir mes relevés")}
+          {errorBox}
 
           <details className="mt-8">
             <summary className="cursor-pointer font-bold">Où trouver mes relevés ?</summary>
@@ -111,7 +135,7 @@ export default function Audit() {
               <li>Connecte-toi à ta banque (appli ou site) et ouvre ton compte courant.</li>
               <li>Cherche la rubrique « Relevés », « Documents » ou « Mes relevés ».</li>
               <li>Télécharge les relevés PDF des 2 à 3 derniers mois : un abonnement se repère quand il revient.</li>
-              <li>Ici, sélectionne-les tous en même temps (ou un par un).</li>
+              <li>Ici, sélectionne-les tous en même temps (Ctrl + clic sur ordinateur), ou ajoute-les un par un.</li>
             </ol>
             <p className="mt-3 text-sm opacity-70">Tu as plutôt un export CSV ? Il fonctionne aussi.</p>
           </details>
@@ -132,8 +156,11 @@ export default function Audit() {
             Aucun prélèvement régulier repéré. Essaie avec 2 à 3 mois de relevés : un abonnement ne se voit
             que lorsqu&apos;il revient.
           </p>
-          <button onClick={() => setSubs(null)} className={`${BOUTON} mt-6`}>
-            Réessayer avec un autre fichier
+          {fichiers}
+          {errorBox}
+          {picker("Ajouter un autre relevé")}
+          <button onClick={reset} className="mt-4 underline">
+            Tout effacer et recommencer
           </button>
         </section>
       )}
@@ -216,8 +243,11 @@ export default function Audit() {
           <p className="mt-6 text-sm opacity-70">
             Cette liste est une aide : vérifie chaque ligne avant de résilier. C&apos;est toi qui décides.
           </p>
-          <button onClick={() => setSubs(null)} className="mt-4 underline">
-            Analyser un autre fichier
+          {fichiers}
+          {errorBox}
+          {picker("Ajouter un autre relevé")}
+          <button onClick={reset} className="mt-4 underline">
+            Tout effacer et recommencer
           </button>
         </section>
       )}
