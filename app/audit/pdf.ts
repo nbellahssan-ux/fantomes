@@ -28,6 +28,7 @@ export async function extractLines(pdfjs: any, data: ArrayBuffer) {
     rows.sort((a, b) => b.y - a.y);
     for (const r of rows) {
       r.items.sort((a, b) => a.x - b.x);
+      while (r.items.length > 1 && /^[^A-Za-z0-9\u00C0-\u00FF]{1,3}$/.test(r.items[r.items.length - 1].str.trim())) r.items.pop();
       lines.push({ items: r.items, text: r.items.map((i) => i.str.trim()).join(" ").replace(/\s+/g, " ") });
     }
   }
@@ -115,5 +116,14 @@ export async function readPdf(file: File): Promise<Tx[]> {
   ).toString();
   const { lines, chars } = await extractLines(pdfjs, await file.arrayBuffer());
   if (chars < 50) throw new Error("PDF_IMAGE");
-  return linesToTx(lines);
+  const tx = linesToTx(lines);
+  const datees = lines.filter((l) => DATE_START.test(l.text));
+  console.log("DIAG_PDF", {
+    lignes: lines.length,
+    lignesAvecDate: datees.length,
+    operationsLues: tx.length,
+    nonLues: datees.filter((l) => !AMOUNT_END.test(l.text)).slice(0, 15).map((l) => l.text),
+    echantillonPage2: lines.slice(70, 110).map((l) => l.text),
+  });
+  return tx;
 }

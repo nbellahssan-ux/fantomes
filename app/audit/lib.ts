@@ -166,6 +166,13 @@ const CONNUS = [
   "PARAMOUNT", "DAZN", "TWITCH", "PLAYSTATION", "XBOX", "NINTENDO", "STRAVA", "DUOLINGO",
 ];
 
+// Indices d'un abonnement même quand on ne voit qu'un seul mois de relevé.
+const INDICES =
+  /\b(PRLV|PRELEV\w*|COTIS\w*|ABONN\w*|PREMIUM|SUBSCRIPTION|MEMBERSHIP|INVIDEO|MODIF AI|DAVINCI)\b/;
+
+const sansAccents = (s: string) =>
+  s.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9 ]/g, " ");
+
 const COMMERCES = [
   "CARREFOUR", "LECLERC", "AUCHAN", "LIDL", "INTERMARCHE", "MONOPRIX", "FRANPRIX", "ALDI", "CASINO",
   "BOULANGERIE", "TOTAL", "ESSO", "SNCF", "UBER", "MCDO", "MCDONALD", "PHARMACIE", "TABAC",
@@ -194,6 +201,7 @@ export function detect(tx: Tx[]): Sub[] {
     const amounts = list.map((t) => Math.abs(t.amount));
     const med = median(amounts);
     const connu = CONNUS.some((k) => key.includes(k));
+    const indice = INDICES.test(sansAccents(list[list.length - 1].label));
     if (!connu && COMMERCES.some((k) => key.includes(k))) continue;
     const tol = connu ? 0.25 : 0.05;
     const close = list.filter((t) => Math.abs(Math.abs(t.amount) - med) <= med * tol);
@@ -214,7 +222,7 @@ export function detect(tx: Tx[]): Sub[] {
         found = true;
       }
     }
-    if (!found && connu) {
+    if (!found && (connu || indice)) {
       subs.push({ key, name: titre(key), raw, amount: med, period: "estimé", annual: med * 12, count: list.length, sure: false });
     }
   }
