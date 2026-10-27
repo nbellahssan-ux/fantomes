@@ -11,15 +11,15 @@ export default function Merci() {
       </h1>
       <p className="mt-5 text-lg leading-relaxed">
         Tu vas recevoir un e-mail de confirmation de Stripe. Ton audit est prêt :
-        il te faut juste ton relevé bancaire.
+        il te faut juste tes relevés bancaires.
       </p>
       <ol className="mt-8 space-y-4">
         <li className="border-l-4 border-[#f2d43d] pl-4">
-          <strong>1.</strong> Télécharge ton relevé bancaire au format CSV (3 mois
+          <strong>1.</strong> Télécharge tes relevés bancaires en PDF (3 mois
           de préférence).
         </li>
         <li className="border-l-4 border-[#f2d43d] pl-4">
-          <strong>2.</strong> Ouvre ton audit et dépose le fichier : il reste sur
+          <strong>2.</strong> Ouvre ton audit et dépose tes fichiers : ils restent sur
           ton appareil.
         </li>
         <li className="border-l-4 border-[#f2d43d] pl-4">

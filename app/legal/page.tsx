@@ -15,7 +15,7 @@ const sections = [
     id: "cgv",
     titre: "Conditions générales de vente",
     blocs: [
-      ["Objet", "Fantômes vend un audit d'abonnements : repérage de prélèvements réguliers à partir d'un relevé bancaire au format CSV, classement par montant annuel et lettres de résiliation prêtes à envoyer."],
+      ["Objet", "Fantômes vend un audit d'abonnements : repérage de prélèvements réguliers à partir de relevés bancaires au format PDF ou CSV, classement par montant annuel et lettres de résiliation prêtes à envoyer."],
       ["Prix", "19 € par audit, paiement unique, sans abonnement. [À CONFIRMER : mention de TVA]."],
       ["Paiement", "Le paiement s'effectue par carte via Stripe. Nous ne voyons ni ne conservons tes données bancaires."],
       ["Livraison", "L'accès à l'outil d'audit est immédiat, en ligne, dès la confirmation du paiement."],
